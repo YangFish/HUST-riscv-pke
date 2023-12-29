@@ -64,6 +64,9 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval) {
           stval - stval % PGSIZE, PGSIZE, 
           (uint64)alloc_page(), prot_to_type(PROT_WRITE | PROT_READ, 1));
       }
+      else {
+        panic("this address is not available!");
+      }
       break;
     default:
       sprint("unknown page fault.\n");
