@@ -17,6 +17,7 @@
 #include "memlayout.h"
 #include "sched.h"
 #include "spike_interface/spike_utils.h"
+#include "stdbool.h"
 
 //Two functions defined in kernel/usertrap.S
 extern char smode_trap_vector[];
@@ -164,7 +165,9 @@ int free_process( process* proc ) {
   // but for proxy kernel, it (memory leaking) may NOT be a really serious issue,
   // as it is different from regular OS, which needs to run 7x24.
   proc->status = ZOMBIE;
-
+  if (proc->pid == 0) // 0号进程退出，程序终止
+    return 0;
+  wake_up(proc);
   return 0;
 }
 
@@ -244,6 +247,20 @@ int do_fork( process* parent)
         child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
         child->total_mapped_region++;
         break;
+      case DATA_SEGMENT:
+        {
+        user_vm_map((pagetable_t)child->pagetable, 
+                    parent->mapped_info[DATA_SEGMENT].va, 
+                    PGSIZE, 
+                    (uint64)alloc_page(), 
+                    prot_to_type(PROT_EXEC | PROT_READ, 1));
+        child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
+        child->mapped_info[child->total_mapped_region].npages =
+          parent->mapped_info[i].npages;
+        child->mapped_info[child->total_mapped_region].seg_type = DATA_SEGMENT;
+        child->total_mapped_region++;
+        break;
+        }
     }
   }
 
@@ -253,4 +270,35 @@ int do_fork( process* parent)
   insert_to_ready_queue( child );
 
   return child->pid;
+}
+
+ssize_t do_wait(int pid) {
+  //case pid = -1, father process wait for any child to exit and return its pid
+  //case pid > 0, wait No.pid child and return pid;
+  //else return -1
+  if (pid == -1) {
+    //find zombie child process, then return
+    for (int i = 0; i < NPROC; i ++) {
+      if (procs[i].parent == current && procs[i].status == ZOMBIE) {
+        procs[i].status = FREE;
+        return procs[i].pid;
+      }
+    }
+    //wait for any child process
+    current -> status = BLOCKED;
+    schedule();
+  }
+  else if (pid > 0) {
+    //check procs[pid]
+    if (procs[pid].parent == current) {
+      if (procs[pid].status == ZOMBIE) {
+        return pid;
+      }
+      //wait for process pid
+      current -> status = BLOCKED;
+      schedule;
+    }
+    return -1;
+  }
+  return -1;
 }
