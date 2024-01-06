@@ -6,6 +6,7 @@
 
 #include "hostfs.h"
 #include "pmm.h"
+#include "vmm.h"
 #include "process.h"
 #include "ramdev.h"
 #include "rfs.h"
@@ -80,8 +81,32 @@ struct file *get_opened_file(int fd) {
 // return: -1 on failure; non-zero file-descriptor on success.
 //
 int do_open(char *pathname, int flags) {
+  //support relativepath
+  char paresd_path[256];
+  if (pathname[0] == '.' && pathname[1] == '.') {
+    pathname += 2;
+    if (current->pfiles->cwd->parent != NULL) {
+    strcpy(paresd_path, current->pfiles->cwd->parent->name);
+    if (!strcmp(paresd_path, "/"))
+      *paresd_path = 0;
+    strcat(paresd_path, pathname);
+  }
+  else
+    strcpy(paresd_path, "/");
+  }
+  else if (pathname[0] == '.' && pathname[1] != '.') {
+    pathname++;
+    strcpy(paresd_path, current->pfiles->cwd->name);
+    if (!strcmp(paresd_path, "/"))
+      *paresd_path = 0;
+    strcat(paresd_path, pathname); 
+  }
+  else {
+    strcpy(paresd_path, pathname);
+  }
+
   struct file *opened_file = NULL;
-  if ((opened_file = vfs_open(pathname, flags)) == NULL) return -1;
+  if ((opened_file = vfs_open(paresd_path, flags)) == NULL) return -1;
 
   int fd = 0;
   if (current->pfiles->nfiles >= MAX_FILES) {
@@ -220,4 +245,42 @@ int do_link(char *oldpath, char *newpath) {
 //
 int do_unlink(char *path) {
   return vfs_unlink(path);
+}
+
+int do_rewd(char* path) {
+  if (current->pfiles->cwd == NULL)
+    return -1;
+  strcpy((char *)user_va_to_pa((pagetable_t)current->pagetable, path), current->pfiles->cwd->name);
+  return 0;
+}
+
+int do_ccwd(char* path) {
+  // panic("do_ccwd: not implemented!\n");
+  if (current->pfiles->cwd == NULL)
+    return -1;
+  char *pathpa = (char *)user_va_to_pa((pagetable_t)current->pagetable, path);
+  if (pathpa[0] == '.' && pathpa[1] == '.') {
+    if (current->pfiles->cwd->parent != NULL) {
+      strcpy(current->pfiles->cwd->name, current->pfiles->cwd->parent->name);
+      struct dentry *p = current->pfiles->cwd->parent;
+      current->pfiles->cwd->parent->parent = current->pfiles->cwd;
+      free_page(p);
+      pathpa += 2;
+      if (pathpa[0] == '/')
+        pathpa++;
+      strcat(current->pfiles->cwd->name, pathpa);
+    }
+    else
+      strcpy(current->pfiles->cwd->name, "/");
+  }
+  else if (pathpa[0] == '.' && pathpa[1] != '.') {
+    pathpa++;
+    if (!strcmp(current->pfiles->cwd->name, "/"))
+      *current->pfiles->cwd->name = 0;
+    strcat(current->pfiles->cwd->name, pathpa);
+  }
+  else {
+    strcpy(current->pfiles->cwd->name, pathpa);
+  }
+  return 0;
 }
