@@ -49,7 +49,6 @@ int func_name_printer(uint64 ret_addr) {
 
 ssize_t sys_backtrace(uint64 depth) {
   //sprint("this is sys_backtrace\n");
-  return 0;
   uint64 trace_sp = current->trapframe->regs.sp + 32;
   uint64 trace_ra = trace_sp + 8;
   uint64 cur = 0;
