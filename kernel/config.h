@@ -20,4 +20,7 @@
 // the trap frame used to assemble the user "process"
 #define USER_TRAP_FRAME 0x81300000
 
+// 多核情况内存偏移量
+#define USER_OFFSET 0x4000000
+
 #endif

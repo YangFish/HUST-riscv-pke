@@ -13,23 +13,36 @@
 
 #include "spike_interface/spike_utils.h"
 
+#include "kernel/sync_utils.h"
+#include "kernel/config.h"
+
 //
 // implement the SYS_user_print syscall
 //
 ssize_t sys_user_print(const char* buf, size_t n) {
-  sprint("hartid = ?: %s\n", buf);
+  uint64 cpuID = read_tp();
+  sprint("hartid = %d: %s\n", cpuID, buf);
   return 0;
 }
 
 //
 // implement the SYS_user_exit syscall
 //
+
+volatile int counter_exit = 0;
+
 ssize_t sys_user_exit(uint64 code) {
-  sprint("hartid = ?: User exit with code:%d.\n", code);
+  uint64 cpuID = read_tp();
+  sprint("hartid = %d: User exit with code:%d.\n", cpuID, code);
   // in lab1, PKE considers only one app (one process). 
   // therefore, shutdown the system when the app calls exit()
-  sprint("hartid = ?: shutdown with code:%d.\n", code);
-  shutdown(code);
+  sprint("hartid = %d: shutdown with code:%d.\n", cpuID, code);
+  
+  sync_barrier(&counter_exit, NCPU);
+  if (cpuID == 0) {
+    // CPU0负责关闭模拟器
+    shutdown(code);
+  }
 }
 
 //

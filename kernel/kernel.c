@@ -17,12 +17,16 @@ process user_app;
 // load_bincode_from_host_elf is defined in elf.c
 //
 void load_user_program(process *proc) {
+  // 定义多核内存偏移量实现初始化地址分离
+  uint64 cpuID = read_tp();
   // USER_TRAP_FRAME is a physical address defined in kernel/config.h
-  proc->trapframe = (trapframe *)USER_TRAP_FRAME;
+  proc->trapframe = (trapframe *)(USER_TRAP_FRAME + cpuID * USER_OFFSET);
   memset(proc->trapframe, 0, sizeof(trapframe));
   // USER_KSTACK is also a physical address defined in kernel/config.h
-  proc->kstack = USER_KSTACK;
-  proc->trapframe->regs.sp = USER_STACK;
+  proc->kstack = USER_KSTACK + cpuID * USER_OFFSET;
+  proc->trapframe->regs.sp = USER_STACK + cpuID * USER_OFFSET;
+  // 设置tp寄存器
+  proc->trapframe->regs.tp = read_tp();
 
   // load_bincode_from_host_elf() is defined in kernel/elf.c
   load_bincode_from_host_elf(proc);
@@ -32,7 +36,8 @@ void load_user_program(process *proc) {
 // s_start: S-mode entry point of riscv-pke OS kernel.
 //
 int s_start(void) {
-  sprint("hartid = ?: Enter supervisor mode...\n");
+  uint64 cpuID = read_tp();
+  sprint("hartid = %d: Enter supervisor mode...\n", cpuID);
   // Note: we use direct (i.e., Bare mode) for memory mapping in lab1.
   // which means: Virtual Address = Physical Address
   // therefore, we need to set satp to be 0 for now. we will enable paging in lab2_x.
@@ -43,7 +48,7 @@ int s_start(void) {
   // the application code (elf) is first loaded into memory, and then put into execution
   load_user_program(&user_app);
 
-  sprint("hartid = ?: Switch to user mode...\n");
+  sprint("hartid = %d: Switch to user mode...\n", cpuID);
   // switch_to() is defined in kernel/process.c
   switch_to(&user_app);
 
