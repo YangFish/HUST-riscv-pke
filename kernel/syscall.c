@@ -21,7 +21,10 @@
 //
 ssize_t sys_user_print(const char* buf, size_t n) {
   uint64 cpuID = read_tp();
-  sprint("hartid = %d: %s\n", cpuID, buf);
+  //sprint("test!!\n");
+  sprint("hartid = %d: %s", cpuID, buf);
+  //sprint("here!\n");
+  //sprint("hartid = %d: %s", cpuID, buf);
   return 0;
 }
 
@@ -29,20 +32,24 @@ ssize_t sys_user_print(const char* buf, size_t n) {
 // implement the SYS_user_exit syscall
 //
 
-volatile int counter_exit = 0;
+extern volatile int counter_exit;
 
 ssize_t sys_user_exit(uint64 code) {
+  //shutdown(code);
   uint64 cpuID = read_tp();
   sprint("hartid = %d: User exit with code:%d.\n", cpuID, code);
   // in lab1, PKE considers only one app (one process). 
   // therefore, shutdown the system when the app calls exit()
-  sprint("hartid = %d: shutdown with code:%d.\n", cpuID, code);
   
+  //sprint("before barrier\n");
   sync_barrier(&counter_exit, NCPU);
+  //sprint("after barrier\n");
   if (cpuID == 0) {
     // CPU0负责关闭模拟器
+    sprint("hartid = %d: shutdown with code:%d.\n", cpuID, code);
     shutdown(code);
   }
+  return 0;
 }
 
 //

@@ -8,9 +8,10 @@
 #include "process.h"
 
 #include "spike_interface/spike_utils.h"
+#include "kernel/sync_utils.h"
 
 // process is a structure defined in kernel/process.h
-process user_app;
+process user_app[NCPU];
 
 //
 // load the elf, and construct a "process" (with only a trapframe).
@@ -35,6 +36,9 @@ void load_user_program(process *proc) {
 //
 // s_start: S-mode entry point of riscv-pke OS kernel.
 //
+
+volatile int counter_exit = 0;
+
 int s_start(void) {
   uint64 cpuID = read_tp();
   sprint("hartid = %d: Enter supervisor mode...\n", cpuID);
@@ -46,11 +50,13 @@ int s_start(void) {
   write_csr(satp, 0);
 
   // the application code (elf) is first loaded into memory, and then put into execution
-  load_user_program(&user_app);
+  load_user_program(&(user_app[cpuID]));
+
+  //sync_barrier(&counter_exit, NCPU);
 
   sprint("hartid = %d: Switch to user mode...\n", cpuID);
   // switch_to() is defined in kernel/process.c
-  switch_to(&user_app);
+  switch_to(&(user_app[cpuID]));
 
   // we should never reach here.
   return 0;

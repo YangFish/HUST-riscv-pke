@@ -21,6 +21,6 @@
 #define USER_TRAP_FRAME 0x81300000
 
 // 多核情况内存偏移量
-#define USER_OFFSET 0x4000000
+#define USER_OFFSET 0x400000
 
 #endif

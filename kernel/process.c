@@ -29,7 +29,9 @@ void switch_to(process* proc) {
   uint64 cpuID = read_tp();
   assert(proc);
   current[cpuID] = proc;
-
+  //sprint("in switch_to(), check trapframe: \n");
+  //sprint("cpuid = %d, buf = %s\n", cpuID, proc->trapframe->regs.a1);
+  //sprint("cpuid = %d\n", cpuID);
   // write the smode_trap_vector (64-bit func. address) defined in kernel/strap_vector.S
   // to the stvec privilege register, such that trap handler pointed by smode_trap_vector
   // will be triggered when an interrupt occurs in S mode.
